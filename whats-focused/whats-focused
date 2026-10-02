@@ -1,0 +1,24 @@
+#!/bin/bash
+# Show a notification naming the focused window's app (and the program running inside a terminal).
+win=$(hyprctl activewindow -j)
+class=$(jq -r '.class // empty' <<<"$win")
+title=$(jq -r '.title // empty' <<<"$win")
+pid=$(jq -r '.pid // empty' <<<"$win")
+
+[[ -z $class ]] && { omarchy-notification-send -t 3000 "Focused app" "No window focused"; exit; }
+
+body="Class: $class"
+
+# Walk down the process tree to find what's running inside (useful for terminals like foot)
+inner=""
+p=$pid
+while [[ -n $p ]]; do
+  child=$(pgrep -P "$p" | tail -n1)
+  [[ -z $child ]] && break
+  inner=$(ps -o comm= -p "$child")
+  p=$child
+done
+[[ -n $inner && $inner != "$class" ]] && body+=$'\n'"Running: $inner"
+
+body+=$'\n'"Title: $title"
+omarchy-notification-send -t 4000 "Focused: $class" "$body"
